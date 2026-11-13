@@ -16,7 +16,7 @@ function startHand(r) {
   if (ready.length < 2) return '至少需要两位有筹码的玩家';
   r.handNo++;
   const h = r.hand = { deck: newDeck(), board: [], street: 'preflop', currentBet: 0, minRaise: BB, needAct: new Set(), toAct: -1, done: false, showdown: null, deadline: 0 };
-  r.seats.forEach(p => { if (!p) return; Object.assign(p, { cards: null, bet: 0, total: 0, folded: false, allIn: false, inHand: p.chips > 0 && !p.away, shown: false, lastAction: '' }); });
+  r.seats.forEach(p => { if (!p) return; Object.assign(p, { cards: null, bet: 0, total: 0, folded: false, allIn: false, inHand: p.chips > 0 && !p.away, shown: false, exposed: [false, false], lastAction: '' }); });
   r.dealer = nextSeat(r, r.dealer, p => p && p.inHand);
   const players = r.seats.filter(p => p && p.inHand);
   players.forEach(p => p.cards = [h.deck.pop(), h.deck.pop()]);
@@ -59,6 +59,34 @@ function act(r, i, type, amount) {
   advanceIfNeeded(r); return null;
 }
 
+function mayShow(r, i) {
+  const h = r.hand, p = r.seats[i];
+  if (!h || !p || !p.cards || !p.inHand) return false;
+  const exposed = p.exposed || [false, false];
+  if (exposed[0] && exposed[1]) return false;
+  if (p.shown && h.done) return false;
+  if (p.folded) return true;
+  if (h.done) return true;
+  return false;
+}
+function showCards(r, i, which) {
+  const p = r.seats[i];
+  if (!p || !mayShow(r, i)) return '现在不能秀牌';
+  if (!p.exposed) p.exposed = [false, false];
+  const before0 = !!p.exposed[0], before1 = !!p.exposed[1];
+  if (which === 'both' || which === 'all') { p.exposed[0] = true; p.exposed[1] = true; }
+  else {
+    const idx = Number(which);
+    if (idx !== 0 && idx !== 1) return '请选择要秀的牌';
+    p.exposed[idx] = true;
+  }
+  if (!!p.exposed[0] === before0 && !!p.exposed[1] === before1) return null;
+  const n = (p.exposed[0] !== before0 ? 1 : 0) + (p.exposed[1] !== before1 ? 1 : 0);
+  p.lastAction = p.folded ? '弃牌·秀牌' : '秀牌';
+  log(r, `${p.name} ${n >= 2 ? '秀出两张牌' : '秀出一张牌'}`);
+  return null;
+}
+
 function advanceIfNeeded(r) {
   const h = r.hand; if (!h || h.done) return;
   const live = r.seats.map((p, i) => [p, i]).filter(([p]) => inHand(p));
@@ -78,6 +106,11 @@ function advanceIfNeeded(r) {
   setTurn(r, nextSeat(r, r.dealer, (q, k) => h.needAct.has(k)));
 }
 
+function netsFromWon(r, won) {
+  const nets = {};
+  r.seats.forEach((p, i) => { if (p && p.inHand) nets[i] = (won[i] || 0) - p.total; });
+  return nets;
+}
 function showdown(r) {
   const h = r.hand;
   const live = r.seats.map((p, i) => [p, i]).filter(([p]) => inHand(p));
@@ -96,72 +129,103 @@ function showdown(r) {
   const totalPot = contrib.reduce((a, b) => a + b, 0), counted = pots.reduce((a, b) => a + b.amt, 0);
   if (totalPot > counted && pots.length) pots[pots.length - 1].amt += totalPot - counted;
   const results = [];
+  const won = {};
   pots.forEach((pot, idx) => {
     const winners = Hand.winners(pot.elig.map(i => solved[i]));
     const wIdx = pot.elig.filter(i => winners.includes(solved[i]));
     const share = Math.floor(pot.amt / wIdx.length); let rem = pot.amt - share * wIdx.length;
     const ordered = [...wIdx].sort((a, b) => ((a - r.dealer + MAX) % MAX) - ((b - r.dealer + MAX) % MAX));
-    ordered.forEach(i => { r.seats[i].chips += share + (rem-- > 0 ? 1 : 0); });
+    ordered.forEach(i => {
+      const gain = share + (rem-- > 0 ? 1 : 0);
+      r.seats[i].chips += gain;
+      won[i] = (won[i] || 0) + gain;
+    });
     results.push({ amt: pot.amt, winners: wIdx.map(i => r.seats[i].name), desc: solved[wIdx[0]].descr, main: idx === 0 });
   });
   h.done = true; setTurn(r, -1);
-  h.showdown = { results, hands: Object.fromEntries(live.map(([, i]) => [i, solved[i].descr])) };
+  h.showdown = { results, hands: Object.fromEntries(live.map(([, i]) => [i, solved[i].descr])), nets: netsFromWon(r, won) };
   results.forEach(x => log(r, `${x.main ? '主池' : '边池'} ${x.amt} → ${x.winners.join('、')}（${zh(x.desc)}）`));
 }
 function finish(r, groups) {
   const h = r.hand, i = groups[0][0];
   const pot = r.seats.reduce((a, p) => a + (p && p.inHand ? p.total : 0), 0);
   r.seats[i].chips += pot; h.done = true; setTurn(r, -1);
-  h.showdown = { results: [{ amt: pot, winners: [r.seats[i].name], desc: '其他人弃牌' }], hands: {} };
+  h.showdown = { results: [{ amt: pot, winners: [r.seats[i].name], desc: '其他人弃牌' }], hands: {}, nets: netsFromWon(r, { [i]: pot }) };
   log(r, `${r.seats[i].name} 赢得 ${pot}（其他人弃牌）`);
 }
 const ZH = { 'Royal Flush': '皇家同花顺', 'Straight Flush': '同花顺', 'Four of a Kind': '四条', 'Full House': '葫芦', 'Flush': '同花', 'Straight': '顺子', 'Three of a Kind': '三条', 'Two Pair': '两对', 'Pair': '一对', 'High Card': '高牌' };
 function zh(d) { for (const k in ZH) if (d.startsWith(k)) return ZH[k] + d.slice(k.length); return d; }
 
+function visibleHole(p, i, me, h) {
+  if (!p.cards) return null;
+  const exposed = p.exposed || [false, false];
+  const force = !!(p.shown && h && h.done);
+  return [0, 1].map(idx => (i === me || force || exposed[idx]) ? p.cards[idx] : '??');
+}
 function view(r, me) {
   const h = r.hand;
+  const nets = h && h.showdown && h.showdown.nets;
   return { type: 'state', room: r.id, me, host: r.host, handNo: r.handNo, dealer: r.dealer, sb: SB, bb: BB, log: r.log.slice(-12).map(zh),
     hand: h && { board: h.board, street: h.street, currentBet: h.currentBet, minRaise: h.minRaise, toAct: h.toAct, done: h.done, left: h.deadline ? h.deadline - Date.now() : 0,
       pot: r.seats.reduce((a, p) => a + (p && p.inHand ? p.total : 0), 0),
-      showdown: h.showdown && { results: h.showdown.results.map(x => ({ ...x, desc: zh(x.desc) })), hands: Object.fromEntries(Object.entries(h.showdown.hands).map(([k, v]) => [k, zh(v)])) } },
+      showdown: h.showdown && { results: h.showdown.results.map(x => ({ ...x, desc: zh(x.desc) })), hands: Object.fromEntries(Object.entries(h.showdown.hands).map(([k, v]) => [k, zh(v)])), nets } },
     seats: r.seats.map((p, i) => p && { name: p.name, chips: p.chips, bet: p.bet || 0, folded: p.folded, allIn: p.allIn, inHand: p.inHand, online: p.ws?.readyState === 1, away: p.away, buyins: p.buyins, lastAction: p.lastAction,
-      cards: p.cards ? ((i === me || (p.shown && h?.done)) ? p.cards : ['??', '??']) : null }) };
+      exposed: p.exposed ? [!!p.exposed[0], !!p.exposed[1]] : [false, false],
+      revealed: !!(p.shown && h && h.done),
+      canShow: i === me && mayShow(r, i),
+      net: nets && Object.prototype.hasOwnProperty.call(nets, i) ? nets[i] : null,
+      cards: visibleHole(p, i, me, h) }) };
 }
 function broadcast(r) { r.seats.forEach((p, i) => { if (p?.ws?.readyState === 1) p.ws.send(JSON.stringify(view(r, i))); });
   (r.watchers || []).forEach(w => w.readyState === 1 && w.send(JSON.stringify(view(r, -1)))); }
 
-setInterval(() => { for (const r of Object.values(rooms)) { const h = r.hand; if (h && !h.done && h.toAct >= 0 && h.deadline && Date.now() > h.deadline) {
-  const p = r.seats[h.toAct]; act(r, h.toAct, h.currentBet - p.bet > 0 ? 'fold' : 'check'); log(r, `${p.name} 超时`); broadcast(r); } } }, 1000);
+function armTimeouts() {
+  const timer = setInterval(() => { for (const r of Object.values(rooms)) { const h = r.hand; if (h && !h.done && h.toAct >= 0 && h.deadline && Date.now() > h.deadline) {
+    const p = r.seats[h.toAct]; act(r, h.toAct, h.currentBet - p.bet > 0 ? 'fold' : 'check'); log(r, `${p.name} 超时`); broadcast(r); } } }, 1000);
+  timer.unref();
+  return timer;
+}
 
-const server = http.createServer((req, res) => {
-  const f = path.join(__dirname, 'public', req.url === '/' || req.url.startsWith('/?') ? 'index.html' : path.normalize(req.url).replace(/^(\.\.[\/\\])+/, ''));
-  fs.readFile(f, (e, d) => { if (e) { res.writeHead(404); return res.end('not found'); } res.writeHead(200, { 'Content-Type': f.endsWith('.html') ? 'text/html; charset=utf-8' : 'text/plain' }); res.end(d); });
-});
-const wss = new WebSocketServer({ server });
-wss.on('connection', ws => {
-  let r = null, me = -1;
-  const err = m => ws.send(JSON.stringify({ type: 'error', msg: m }));
-  ws.on('message', raw => {
-    let m; try { m = JSON.parse(raw); } catch { return; }
-    if (m.type === 'join') {
-      r = room(String(m.room || '').slice(0, 20) || 'lobby');
-      const token = String(m.token || ''), name = String(m.name || '玩家').slice(0, 12);
-      me = r.seats.findIndex(p => p && p.token === token);
-      if (me < 0) { me = r.seats.findIndex(p => !p); if (me < 0) { (r.watchers ||= []).push(ws); err('桌子满了，你现在是观战'); return broadcast(r); }
-        r.seats[me] = { token, name, chips: START, buyins: 1, inHand: false }; log(r, `${name} 入座`); }
-      r.seats[me].ws = ws; r.seats[me].name = name; r.seats[me].away = false;
-      if (r.host == null || !r.seats[r.host]) r.host = me;
-      return broadcast(r);
-    }
-    if (!r || me < 0 || !r.seats[me]) return;
-    const p = r.seats[me]; let e = null;
-    if (m.type === 'start') { if (r.hand && !r.hand.done) e = '这一手还没结束'; else e = startHand(r); }
-    else if (m.type === 'act') e = act(r, me, m.action, m.amount);
-    else if (m.type === 'rebuy') { if (r.hand && !r.hand.done && p.inHand) e = '本手结束后才能补码'; else { p.chips += START; p.buyins++; log(r, `${p.name} 补码 ${START}`); } }
-    else if (m.type === 'away') { p.away = !p.away; log(r, `${p.name} ${p.away ? '暂离' : '回来了'}`); }
-    else if (m.type === 'leave') { if (r.hand && !r.hand.done && p.inHand) { err('这一手结束后才能离开'); return broadcast(r); } r.seats[me] = null; log(r, `${p.name} 离开`); if (r.host === me) r.host = r.seats.findIndex(Boolean); me = -1; }
-    if (e) err(e); broadcast(r);
+function buildServer() {
+  const server = http.createServer((req, res) => {
+    const f = path.join(__dirname, 'public', req.url === '/' || req.url.startsWith('/?') ? 'index.html' : path.normalize(req.url).replace(/^(\.\.[\/\\])+/, ''));
+    fs.readFile(f, (e, d) => { if (e) { res.writeHead(404); return res.end('not found'); } res.writeHead(200, { 'Content-Type': f.endsWith('.html') ? 'text/html; charset=utf-8' : 'text/plain' }); res.end(d); });
   });
-  ws.on('close', () => { if (r) { r.watchers = (r.watchers || []).filter(w => w !== ws); broadcast(r); } });
-});
-server.listen(PORT, '0.0.0.0', () => console.log('poker on', PORT));
+  const wss = new WebSocketServer({ server });
+  wss.on('connection', ws => {
+    let r = null, me = -1;
+    const err = m => ws.send(JSON.stringify({ type: 'error', msg: m }));
+    ws.on('message', raw => {
+      let m; try { m = JSON.parse(raw); } catch { return; }
+      if (m.type === 'join') {
+        r = room(String(m.room || '').slice(0, 20) || 'lobby');
+        const token = String(m.token || ''), name = String(m.name || '玩家').slice(0, 12);
+        me = r.seats.findIndex(p => p && p.token === token);
+        if (me < 0) { me = r.seats.findIndex(p => !p); if (me < 0) { (r.watchers ||= []).push(ws); err('桌子满了，你现在是观战'); return broadcast(r); }
+          r.seats[me] = { token, name, chips: START, buyins: 1, inHand: false }; log(r, `${name} 入座`); }
+        r.seats[me].ws = ws; r.seats[me].name = name; r.seats[me].away = false;
+        if (r.host == null || !r.seats[r.host]) r.host = me;
+        return broadcast(r);
+      }
+      if (!r || me < 0 || !r.seats[me]) return;
+      const p = r.seats[me]; let e = null;
+      if (m.type === 'start') { if (r.hand && !r.hand.done) e = '这一手还没结束'; else e = startHand(r); }
+      else if (m.type === 'act') e = act(r, me, m.action, m.amount);
+      else if (m.type === 'show') e = showCards(r, me, m.card);
+      else if (m.type === 'rebuy') { if (r.hand && !r.hand.done && p.inHand) e = '本手结束后才能补码'; else { p.chips += START; p.buyins++; log(r, `${p.name} 补码 ${START}`); } }
+      else if (m.type === 'away') { p.away = !p.away; log(r, `${p.name} ${p.away ? '暂离' : '回来了'}`); }
+      else if (m.type === 'leave') { if (r.hand && !r.hand.done && p.inHand) { err('这一手结束后才能离开'); return broadcast(r); } r.seats[me] = null; log(r, `${p.name} 离开`); if (r.host === me) r.host = r.seats.findIndex(Boolean); me = -1; }
+      if (e) err(e); broadcast(r);
+    });
+    ws.on('close', () => { if (r) { r.watchers = (r.watchers || []).filter(w => w !== ws); broadcast(r); } });
+  });
+  return { server, wss };
+}
+
+if (require.main === module) {
+  armTimeouts();
+  const { server } = buildServer();
+  server.listen(PORT, '0.0.0.0', () => console.log('poker on', PORT));
+}
+
+module.exports = { room, rooms, startHand, act, showCards, mayShow, view, buildServer, MAX, START, SB, BB, TURN_MS };

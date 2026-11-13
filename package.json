@@ -4,7 +4,8 @@
   "description": "Friends Texas Hold'em (chips only, no real money)",
   "main": "server.js",
   "scripts": {
-    "start": "node server.js"
+    "start": "node server.js",
+    "test": "node --test test/holdem.test.js"
   },
   "keywords": [],
   "author": "",

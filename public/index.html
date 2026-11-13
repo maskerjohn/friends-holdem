@@ -1,76 +1,215 @@
-<!doctype html><html lang="zh"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1">
+<!doctype html><html lang="zh"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,viewport-fit=cover">
 <title>朋友德州扑克</title>
 <style>
-*{box-sizing:border-box}body{margin:0;font-family:-apple-system,"PingFang SC",sans-serif;background:#0b3d2e;color:#fff}
-#join{max-width:360px;margin:60px auto;padding:20px;text-align:center}
-#join input{width:100%;padding:12px;margin:8px 0;font-size:17px;border-radius:10px;border:0}
-button{font-size:16px;padding:11px 14px;border-radius:10px;border:0;margin:3px;background:#f2c94c;color:#222;font-weight:600}
-button.gray{background:#ddd}button.red{background:#eb5757;color:#fff}button:disabled{opacity:.4}
-#game{display:none;max-width:520px;margin:0 auto;padding:8px}
-.top{display:flex;justify-content:space-between;font-size:13px;opacity:.85}
-.board{background:#13694b;border-radius:80px;padding:18px 8px;text-align:center;margin:10px 0}
-.pot{font-size:15px;margin-bottom:6px}
-.card{display:inline-block;width:38px;height:54px;line-height:54px;background:#fff;color:#111;border-radius:6px;margin:2px;font-weight:700;font-size:17px}
-.card.r{color:#d0021b}.card.back{background:repeating-linear-gradient(45deg,#2d6cdf,#2d6cdf 4px,#1f4fa8 4px,#1f4fa8 8px)}
-.seats{display:grid;grid-template-columns:1fr 1fr;gap:6px}
-.seat{background:rgba(0,0,0,.25);border-radius:10px;padding:7px;font-size:13px;min-height:84px}
-.seat.turn{outline:3px solid #f2c94c}.seat.fold{opacity:.45}.seat.me{background:rgba(242,201,76,.18)}
-.seat .card{width:28px;height:40px;line-height:40px;font-size:13px}
-.act{position:sticky;bottom:0;background:#0b3d2e;padding:8px 0}
-#raise{width:100%}#log{font-size:12px;opacity:.8;max-height:140px;overflow:auto;margin-top:8px}
-#msg{color:#ffb3b3;min-height:18px;font-size:13px}
+*{box-sizing:border-box}
+html,body{height:100%}
+body{margin:0;font-family:-apple-system,BlinkMacSystemFont,"PingFang SC","Noto Sans SC","Microsoft YaHei",sans-serif;background:#07110d;color:#f4f7f2}
+#join{max-width:380px;margin:0 auto;padding:48px 20px 24px;text-align:center}
+#join h2{margin:0 0 8px;font-weight:750;letter-spacing:.04em}
+#join p{font-size:13px;line-height:1.5;color:#d5e4da}
+.panel{background:linear-gradient(180deg,#143528,#0c2418);border:1px solid rgba(232,196,122,.35);border-radius:18px;padding:18px 16px 16px;box-shadow:0 16px 40px rgba(0,0,0,.35)}
+#join input{width:100%;padding:12px 14px;margin:8px 0;font-size:17px;border-radius:10px;border:0;background:#f6f3ea;color:#1b1b1b}
+button{font-size:16px;padding:11px 12px;border-radius:10px;border:0;margin:0;background:#f2c94c;color:#222;font-weight:700}
+button.gray{background:#e6e1d6;color:#222}button.red{background:#d64545;color:#fff}button.show{background:transparent;color:#ffe7a3;border:1px solid rgba(242,201,76,.9)}
+button:disabled{opacity:.4}
+#game{display:none;max-width:640px;margin:0 auto;padding:6px 8px calc(8px + env(safe-area-inset-bottom));min-height:100%;flex-direction:column}
+.top{display:flex;justify-content:space-between;align-items:center;gap:8px;font-size:13px;color:#d7e6dc;padding:2px 2px 4px}
+.top button{padding:5px 9px;font-size:13px}
+.table-wrap{position:relative;flex:1 1 auto;min-height:492px;margin-top:2px}
+.rail{position:absolute;left:4px;right:4px;top:112px;bottom:168px;border-radius:999px;padding:11px;
+ background:
+  repeating-linear-gradient(90deg,rgba(255,255,255,.05) 0 2px,transparent 2px 8px),
+  linear-gradient(180deg,#e0c09a 0%,#a87545 10%,#6b4423 28%,#3e2715 62%,#2a190e 100%);
+ box-shadow:0 16px 28px rgba(0,0,0,.48),inset 0 1px 0 rgba(255,236,210,.7),inset 0 0 0 2px #efd3a4,inset 0 0 0 9px #3a2414}
+.felt{height:100%;border-radius:999px;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:8px 16px 10px;position:relative;
+ background:
+  radial-gradient(ellipse at 50% 42%,rgba(255,255,255,.16),transparent 46%),
+  radial-gradient(ellipse at 50% 55%,#1c8f58 0%,#0e6a40 58%,#08462b 100%);
+ box-shadow:inset 0 0 36px rgba(0,0,0,.38),inset 0 0 0 2px rgba(255,255,255,.06)}
+.potline{display:flex;align-items:center;gap:8px;margin-bottom:6px}
+.potmeta{display:flex;flex-direction:column;line-height:1.15}
+.potmeta span{font-size:11px;letter-spacing:.14em;color:#f0ddaa}
+.potmeta em{font-style:normal;font-size:12px;color:#f7fff8}
+.wait{color:#f0ddaa;font-size:14px;letter-spacing:.08em}
+.board{min-height:74px;display:flex;gap:4px;justify-content:center;align-items:center}
+.result{min-height:16px;max-height:2.6em;overflow:hidden;font-size:11px;line-height:1.3;color:#f6e7b8;text-align:center;margin-top:4px;max-width:96%}
+.seat{position:absolute;width:31%;z-index:2;text-align:center}
+.seat.hero{width:46%;z-index:3}
+.seat.s3{left:50%;top:28px;transform:translateX(-50%)}
+.seat.s4{left:0;top:28px}
+.seat.s2{right:0;top:28px}
+.seat.s0{left:50%;bottom:0;transform:translateX(-50%)}
+.seat.s5{left:0;bottom:0}
+.seat.s1{right:0;bottom:0}
+.plate{background:rgba(5,16,12,.72);border:1px solid rgba(255,255,255,.08);border-radius:12px;padding:4px 4px 5px;box-shadow:0 6px 14px rgba(0,0,0,.28)}
+.seat.turn .plate{border-color:#f2c94c;box-shadow:0 0 0 2px #f2c94c,0 6px 14px rgba(0,0,0,.28)}
+.seat.hero .plate{background:rgba(40,32,10,.78);border-color:rgba(242,201,76,.45)}
+.seat.fold .plate{opacity:.72}
+.seat.fold .holes{opacity:1}
+.seat.empty .plate{background:transparent;border-style:dashed;border-color:rgba(255,255,255,.18);box-shadow:none;color:rgba(255,255,255,.45);font-size:12px;padding:10px 4px}
+.who{display:flex;justify-content:center;align-items:center;gap:3px;min-height:16px}
+.who b{font-size:12px;max-width:70%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.tag{font-size:10px;line-height:15px;padding:0 4px;border-radius:99px;background:rgba(0,0,0,.38);color:#efe7d2;font-style:normal}
+.tag.d{background:#f2c94c;color:#241c08;font-weight:800}
+.money{display:flex;justify-content:center;align-items:flex-end;gap:5px;min-height:22px;margin:1px 0 2px}
+.betline{font-size:10px;color:#f0ddaa;display:flex;justify-content:center;align-items:flex-end;gap:3px;min-height:14px}
+.holes{display:flex;justify-content:center;gap:3px;min-height:44px}
+.meta{font-size:10px;line-height:1.3;color:#d5eee0;min-height:13px;overflow:hidden;white-space:nowrap;text-overflow:ellipsis}
+.stack{display:inline-flex;align-items:flex-end;gap:3px}
+.pile{position:relative;display:inline-block}
+.chip{position:absolute;left:0;border-radius:50%;box-shadow:inset 0 0 0 1.5px rgba(255,255,255,.72),inset 0 0 0 3.5px rgba(0,0,0,.28),0 1px 1px rgba(0,0,0,.45)}
+.amt{font-size:12px;font-weight:800;font-variant-numeric:tabular-nums;line-height:1}
+.stack.lg .amt{font-size:20px;color:#fff8e8;text-shadow:0 1px 2px rgba(0,0,0,.45)}
+.c1{background:radial-gradient(circle at 35% 30%,#fff,#dedede 58%,#b5b5b5)}
+.c5{background:radial-gradient(circle at 35% 30%,#ffb1b1,#e53935 58%,#9f1d1d)}
+.c10{background:radial-gradient(circle at 35% 30%,#b9d7ff,#1e88e5 58%,#0d47a1)}
+.c25{background:radial-gradient(circle at 35% 30%,#b6ecb8,#2e7d32 58%,#145224)}
+.c100{background:radial-gradient(circle at 35% 30%,#757575,#212121 60%,#000)}
+.c500{background:radial-gradient(circle at 35% 30%,#ecc2f5,#8e24aa 58%,#4a148c)}
+.c1000{background:radial-gradient(circle at 35% 30%,#ffe099,#fb8c00 55%,#e65100)}
+.card{display:inline-flex;flex-direction:column;justify-content:space-between;width:42px;height:60px;padding:3px 3px 4px;border-radius:6px;background:linear-gradient(#fff,#f3f0e8);color:#161616;box-shadow:0 2px 4px rgba(0,0,0,.35);line-height:1;font-weight:800}
+.card i{font-style:normal;font-size:15px;letter-spacing:-.03em}
+.card b{font-weight:700;font-size:14px;align-self:flex-end}
+.card.b{width:48px;height:70px}
+.card.b i,.card.b b{font-size:18px}
+.seat.hero .card{width:56px;height:80px}
+.seat.hero .card i{font-size:22px}
+.seat.hero .card b{font-size:20px}
+.card.r{color:#d01212}
+.card.back{background:repeating-linear-gradient(45deg,#1c4694,#1c4694 5px,#2d67d6 5px,#2d67d6 10px);box-shadow:inset 0 0 0 3px #f4f4f4,0 2px 4px rgba(0,0,0,.35)}
+.card.out{box-shadow:0 0 0 2px #f2c94c,0 2px 4px rgba(0,0,0,.35)}
+.netfloat{position:absolute;left:50%;top:0;z-index:6;font-weight:900;font-size:28px;line-height:1;pointer-events:none;white-space:nowrap;font-variant-numeric:tabular-nums}
+.seat.hero .netfloat{font-size:36px}
+.netfloat.win{color:#ffd34d;text-shadow:0 2px 0 #6a4a00,0 0 14px rgba(255,196,40,.9)}
+.netfloat.lose{color:#ff4d4f;text-shadow:0 2px 0 #5a1010,0 0 14px rgba(255,50,50,.85)}
+.netfloat.push{color:#f4efe2;text-shadow:0 2px 0 #2a2418,0 0 10px rgba(255,255,255,.35)}
+#msg{color:#ffb4b4;min-height:16px;font-size:13px;padding:0 2px}
+.act{position:sticky;bottom:0;z-index:20;background:#07110d;padding:6px 0 4px}
+.act .row{display:flex;flex-wrap:wrap;gap:6px}
+.act .row button{flex:1 1 auto}
+.timer,.waitact{font-size:13px;color:#d7e6dc;padding-bottom:4px}
+#raise{width:100%;margin:6px 0 0}
+.showrow{display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin-top:6px}
+.showlabel{font-size:13px;font-weight:800;color:#f2c94c}
+#log{font-size:12px;color:#c5d8cc;max-height:72px;overflow:auto;line-height:1.45;padding:2px}
+@media (min-width:560px){
+ .table-wrap{min-height:560px}
+ .rail{top:128px;bottom:196px}
+ .card.b{width:58px;height:82px}
+ .card.b i,.card.b b{font-size:22px}
+ .seat .card{width:46px;height:66px}
+ .seat .card i{font-size:17px}
+ .seat .card b{font-size:16px}
+ .seat.hero .card{width:66px;height:94px}
+ .seat.hero .card i{font-size:26px}
+ .seat.hero .card b{font-size:24px}
+ .seat.s3,.seat.s4,.seat.s2{top:34px}
+}
+@media (max-width:359px){
+ .card.b{width:42px;height:62px}
+ .card.b i,.card.b b{font-size:16px}
+ .seat.hero .card{width:50px;height:72px}
+ .seat .card{width:36px;height:52px}
+}
 </style></head><body>
-<div id="join"><h2>朋友德州扑克</h2><p style="font-size:13px;opacity:.8">只用筹码，不涉及真钱。大家输入同一个房间号就进同一桌，最多 6 人。</p>
-<input id="name" placeholder="你的昵称"><input id="roomIn" placeholder="房间号，比如 888">
-<button onclick="join()" style="width:100%">进入牌桌</button></div>
+<div id="join"><div class="panel"><h2>朋友德州扑克</h2><p>只用筹码，不涉及真钱。大家输入同一个房间号就进同一桌，最多 6 人。</p>
+<input id="name" placeholder="你的昵称" maxlength="12"><input id="roomIn" placeholder="房间号，比如 888" maxlength="20">
+<button onclick="join()" style="width:100%">进入牌桌</button></div></div>
 <div id="game">
- <div class="top"><span id="roomInfo"></span><span><button class="gray" style="padding:5px 9px;font-size:13px" onclick="share()">复制邀请链接</button></span></div>
- <div class="board"><div class="pot" id="pot"></div><div id="boardCards"></div><div id="result" style="font-size:13px;margin-top:6px"></div></div>
- <div class="seats" id="seats"></div>
+ <div class="top"><span id="roomInfo"></span><button class="gray" onclick="share()">复制邀请链接</button></div>
  <div id="msg"></div>
+ <div class="table-wrap">
+  <div class="rail"><div class="felt"><div id="pot"></div><div class="board" id="boardCards"></div><div class="result" id="result"></div></div></div>
+  <div id="seats"></div>
+ </div>
  <div class="act" id="act"></div>
  <div id="log"></div>
 </div>
 <script>
-const q=new URLSearchParams(location.search);let token=localStorage.pokerToken||(localStorage.pokerToken=Math.random().toString(36).slice(2)+Date.now());
-document.getElementById('name').value=localStorage.pokerName||'';document.getElementById('roomIn').value=q.get('room')||'';
+const q=new URLSearchParams(location.search);
+let token=localStorage.pokerToken||(localStorage.pokerToken=Math.random().toString(36).slice(2)+Date.now());
+document.getElementById('name').value=localStorage.pokerName||'';
+document.getElementById('roomIn').value=q.get('room')||'';
 let ws,S,roomId;
+let netClock={hand:null,t0:0},netRAF=0;
 function join(){const n=document.getElementById('name').value.trim(),r=document.getElementById('roomIn').value.trim();if(!n||!r)return alert('请填写昵称和房间号');
  localStorage.pokerName=n;roomId=r;history.replaceState(null,'','?room='+encodeURIComponent(r));connect();}
 function connect(){ws=new WebSocket((location.protocol==='https:'?'wss://':'ws://')+location.host);
  ws.onopen=()=>send({type:'join',room:roomId,name:localStorage.pokerName,token});
  ws.onmessage=e=>{const m=JSON.parse(e.data);if(m.type==='error'){msg(m.msg);return}S=m;if(S.hand)S.hand.deadline=Date.now()+S.hand.left;render()};
  ws.onclose=()=>{msg('连接断开，正在重连…');setTimeout(connect,2000)};
- document.getElementById('join').style.display='none';document.getElementById('game').style.display='block';}
+ document.getElementById('join').style.display='none';document.getElementById('game').style.display='flex';}
 function send(o){ws&&ws.readyState===1&&ws.send(JSON.stringify(o))}
 function msg(t){const el=document.getElementById('msg');el.textContent=t;clearTimeout(msg.t);msg.t=setTimeout(()=>el.textContent='',4000)}
 function share(){const u=location.origin+'/?room='+encodeURIComponent(roomId);navigator.clipboard?.writeText(u).then(()=>msg('已复制：'+u),()=>prompt('复制这个链接发给朋友',u))}
 const SU={s:'♠',h:'♥',d:'♦',c:'♣'};
-function card(c){if(c==='??')return '<span class="card back"></span>';const r=c[0]==='T'?'10':c[0];return `<span class="card ${'hd'.includes(c[1])?'r':''}">${r}${SU[c[1]]}</span>`}
 const ST={preflop:'翻牌前',flop:'翻牌',turn:'转牌',river:'河牌'};
+const DENOMS=[[1000,'c1000'],[500,'c500'],[100,'c100'],[25,'c25'],[10,'c10'],[5,'c5'],[1,'c1']];
+function visualStack(amount){const n=Math.max(0,Math.floor(Number(amount)||0));if(!n)return [];
+ const height=n>=1500?5:n>=500?4:n>=100?3:n>=10?2:1;let left=n;const colors=[];
+ for(const [v,c] of DENOMS){if(left>=v){colors.push(c);left-=v*Math.floor(left/v)}if(colors.length===3)break}
+ if(!colors.length)colors.push('c1');
+ const chips=[];for(let i=0;i<height;i++)chips.push(colors[i%colors.length]);chips[chips.length-1]=colors[0];return chips}
+function pileHTML(amount,size){const list=visualStack(amount);const chip=size==='lg'?22:14;const step=size==='lg'?5:3;
+ if(!list.length)return `<span class="stack ${size||''}"><b class="amt">0</b></span>`;
+ const h=chip+(list.length-1)*step;
+ const discs=list.map((c,i)=>`<i class="chip ${c}" style="width:${chip}px;height:${chip}px;bottom:${i*step}px;z-index:${i}"></i>`).join('');
+ return `<span class="stack ${size||''}"><span class="pile" style="height:${h}px;width:${chip}px">${discs}</span><b class="amt">${amount}</b></span>`}
+function cardText(c){if(!c||c==='??')return '';const r=c[0]==='T'?'10':c[0];return r+SU[c[1]]}
+function card(c,extra){extra=extra||'';if(c==='??')return `<span class="card back ${extra}"></span>`;
+ const r=c[0]==='T'?'10':c[0];const red=c[1]==='h'||c[1]==='d';
+ return `<span class="card ${red?'r':''} ${extra}"><i>${r}</i><b>${SU[c[1]]}</b></span>`}
+function esc(s){return String(s==null?'':s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]))}
+function syncNetClock(){if(!(S&&S.hand&&S.hand.done&&S.seats.some(p=>p&&p.net!=null)))return false;
+ if(netClock.hand!==S.handNo)netClock={hand:S.handNo,t0:performance.now()};return true}
+function netMotion(){const t=performance.now()-netClock.t0;const IN=420,HOLD=2500,OUT=900;
+ let opacity=0,dy=14,scale=.7;
+ if(t<IN){const k=1-Math.pow(1-t/IN,3);opacity=k;dy=18*(1-k);scale=.7+.3*k}
+ else if(t<IN+HOLD){opacity=1;dy=0;scale=1}
+ else if(t<IN+HOLD+OUT){const k=(t-IN-HOLD)/OUT;opacity=1-k;dy=-12*k;scale=1}
+ else{opacity=0;dy=-12;scale=1}
+ return {opacity,transform:`translate(-50%, calc(-100% + ${dy}px)) scale(${scale})`,live:opacity>0.01}}
+function paintNets(){const nodes=document.querySelectorAll('.netfloat');if(!nodes.length)return false;const m=netMotion();
+ nodes.forEach(n=>{n.style.opacity=String(m.opacity);n.style.transform=m.transform});return m.live}
+function ensureNetTick(){cancelAnimationFrame(netRAF);const step=()=>{if(paintNets())netRAF=requestAnimationFrame(step)};netRAF=requestAnimationFrame(step)}
+function fmtNet(n){return n>0?'+'+n:n<0?String(n):'+0'}
 function render(){const h=S.hand,me=S.seats[S.me];
  document.getElementById('roomInfo').textContent=`房间 ${S.room} · 盲注 ${S.sb}/${S.bb}`+(S.handNo?` · 第 ${S.handNo} 手`:'');
- document.getElementById('pot').textContent=h?`底池 ${h.pot} · ${h.done?'本手结束':ST[h.street]}`:'等待开始';
- document.getElementById('boardCards').innerHTML=h?h.board.map(card).join(''):'';
- document.getElementById('result').innerHTML=h&&h.showdown?h.showdown.results.map(x=>`${x.winners.join('、')} 赢 ${x.amt}（${x.desc}）`).join('<br>'):'';
- document.getElementById('seats').innerHTML=S.seats.map((p,i)=>{if(!p)return `<div class="seat" style="opacity:.3">空座</div>`;
-  const tags=[i===S.dealer&&h?'庄':'',i===S.host?'房主':'',p.online?'':'离线',p.away?'暂离':'',p.allIn?'全下':''].filter(Boolean).join(' ');
-  const sd=h&&h.showdown&&h.showdown.hands[i]?`<div>${h.showdown.hands[i]}</div>`:'';
-  return `<div class="seat ${h&&h.toAct===i?'turn':''} ${p.folded?'fold':''} ${i===S.me?'me':''}"><b>${esc(p.name)}</b> ${tags}<br>筹码 ${p.chips}${p.buyins>1?`（补码${p.buyins-1}次）`:''}${p.bet?` · 本轮 ${p.bet}`:''}<br>${p.cards?p.cards.map(card).join(''):''} <span style="opacity:.8">${p.lastAction||''}</span>${sd}</div>`}).join('');
- const A=document.getElementById('act');let html='';
+ document.getElementById('pot').innerHTML=h?`<div class="potline">${pileHTML(h.pot,'lg')}<div class="potmeta"><span>底池</span><em>${h.done?'本手结束':ST[h.street]}</em></div></div>`:'<div class="wait">等待开始</div>';
+ document.getElementById('boardCards').innerHTML=h&&h.board.length?h.board.map(c=>card(c,'b')).join(''):'';
+ document.getElementById('result').innerHTML=h&&h.showdown?h.showdown.results.map(x=>`${x.winners.map(esc).join('、')} 赢 ${x.amt}（${esc(x.desc)}）`).join('<br>'):'';
+ const showNets=syncNetClock();
+ const motion=showNets?netMotion():null;
+ document.getElementById('seats').innerHTML=S.seats.map((p,i)=>{
+  const slot=S.me<0?i:(i-S.me+6)%6;
+  if(!p)return `<div class="seat s${slot} empty"><div class="plate">空座</div></div>`;
+  const tags=[i===S.dealer&&h?'<i class="tag d">庄</i>':'',i===S.host?'<i class="tag">房主</i>':'',p.online?'':'<i class="tag">离线</i>',p.away?'<i class="tag">暂离</i>':'',p.allIn?'<i class="tag">全下</i>':'',p.buyins>1?`<i class="tag">补码${p.buyins-1}</i>`:''].filter(Boolean).join('');
+  const holes=p.cards?p.cards.map((c,idx)=>card(c,(p.exposed&&p.exposed[idx]&&c!=='??')?'out':'')).join(''):'';
+  const sd=h&&h.showdown&&h.showdown.hands[i]?h.showdown.hands[i]:'';
+  const meta=[p.bet?`本轮 ${p.bet}`:'',p.lastAction||'',sd].filter(Boolean).map(esc).join(' · ');
+  const net=p.net==null?'':`<div class="netfloat ${p.net>0?'win':p.net<0?'lose':'push'}" style="opacity:${motion?motion.opacity:0};transform:${motion?motion.transform:'translate(-50%,-100%)'}">${fmtNet(p.net)}</div>`;
+  return `<div class="seat s${slot} ${i===S.me?'hero':''} ${h&&h.toAct===i?'turn':''} ${p.folded?'fold':''}">${net}<div class="plate"><div class="who"><b>${esc(p.name)}</b>${tags}</div><div class="money">${pileHTML(p.chips)}${p.bet?`<span class="betline">${pileHTML(p.bet)}</span>`:''}</div><div class="holes">${holes}</div><div class="meta">${meta}</div></div></div>`}).join('');
+ if(showNets)ensureNetTick();
+ const A=document.getElementById('act');let html='<div class="row">';
  if(h&&!h.done&&h.toAct===S.me&&me){const toCall=h.currentBet-me.bet,minTo=Math.min(h.currentBet+h.minRaise,me.bet+me.chips),maxTo=me.bet+me.chips;
   const left=Math.max(0,Math.ceil((h.deadline-Date.now())/1000));
-  html+=`<div style="font-size:13px">轮到你了（${left} 秒内操作）</div><button class="red" onclick="act('fold')">弃牌</button>`;
+  html=`<div class="timer">轮到你了（${left} 秒内操作）</div><div class="row"><button class="red" onclick="act('fold')">弃牌</button>`;
   html+=toCall>0?`<button onclick="act('call')">跟注 ${Math.min(toCall,me.chips)}</button>`:`<button onclick="act('check')">过牌</button>`;
-  if(maxTo>h.currentBet){html+=`<button onclick="act('raise',+document.getElementById('raise').value)">加到 <span id="rv">${minTo}</span></button><button onclick="act('allin')">全下</button>`;
+  if(maxTo>h.currentBet){html+=`<button onclick="act('raise',+document.getElementById('raise').value)">加到 <span id="rv">${minTo}</span></button><button onclick="act('allin')">全下</button></div>`;
    html+=`<input id="raise" type="range" min="${minTo}" max="${maxTo}" step="${S.bb/2}" value="${minTo}" oninput="document.getElementById('rv').textContent=this.value">`;}
- } else if(!h||h.done){html+=`<button onclick="send({type:'start'})">发下一手</button>`;
-  html+=`<button class="gray" onclick="send({type:'rebuy'})">补码 2000</button><button class="gray" onclick="send({type:'away'})">${me&&me.away?'我回来了':'暂离'}</button><button class="gray" onclick="if(confirm('确定离开座位？'))send({type:'leave'})">离座</button>`;
- } else html+=`<div style="font-size:13px;opacity:.8">等待 ${esc(S.seats[h.toAct]?.name||'')} 操作…</div>`;
+  else html+='</div>';
+ } else if(!h||h.done){html+=`<button onclick="send({type:'start'})">发下一手</button><button class="gray" onclick="send({type:'rebuy'})">补码 2000</button><button class="gray" onclick="send({type:'away'})">${me&&me.away?'我回来了':'暂离'}</button><button class="gray" onclick="if(confirm('确定离开座位？'))send({type:'leave'})">离座</button></div>`;
+ } else html+=`</div><div class="waitact">等待 ${esc((S.seats[h.toAct]&&S.seats[h.toAct].name)||'')} 操作…</div>`;
+ html+=showControls(me);
  A.innerHTML=html;
  document.getElementById('log').innerHTML=S.log.slice().reverse().map(esc).join('<br>');}
+function showControls(me){if(!me||!me.canShow||!me.cards)return '';
+ const exp=me.exposed||[false,false];let btns='';
+ me.cards.forEach((c,idx)=>{if(!exp[idx])btns+=`<button class="show" onclick="showCard(${idx})">秀${cardText(c)}</button>`});
+ if(!exp[0]&&!exp[1])btns+=`<button class="show" onclick="showCard('both')">两张都秀</button>`;
+ return `<div class="showrow"><span class="showlabel">秀牌</span>${btns}</div>`}
 function act(a,amount){send({type:'act',action:a,amount})}
-function esc(s){return String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]))}
-setInterval(()=>{if(S&&S.hand&&!S.hand.done&&S.hand.toAct===S.me){const el=document.querySelector('#act div');if(el){const left=Math.max(0,Math.ceil((S.hand.deadline-Date.now())/1000));el.textContent=`轮到你了（${left} 秒内操作）`}}},1000);
+function showCard(which){send({type:'show',card:which})}
+setInterval(()=>{if(S&&S.hand&&!S.hand.done&&S.hand.toAct===S.me){const el=document.querySelector('#act .timer');if(el){const left=Math.max(0,Math.ceil((S.hand.deadline-Date.now())/1000));el.textContent=`轮到你了（${left} 秒内操作）`}}},1000);
 if(q.get('room')&&localStorage.pokerName){roomId=q.get('room');connect()}
 </script></body></html>

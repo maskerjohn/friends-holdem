@@ -164,4 +164,4 @@ wss.on('connection', ws => {
   });
   ws.on('close', () => { if (r) { r.watchers = (r.watchers || []).filter(w => w !== ws); broadcast(r); } });
 });
-server.listen(PORT, () => console.log('poker on', PORT));
+server.listen(PORT, '0.0.0.0', () => console.log('poker on', PORT));

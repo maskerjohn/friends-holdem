@@ -1,0 +1,20 @@
+{
+  "name": "friends-holdem",
+  "version": "1.0.0",
+  "description": "Friends Texas Hold'em (chips only, no real money)",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "dependencies": {
+    "pokersolver": "^2.1.4",
+    "ws": "^8.23.0"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}
